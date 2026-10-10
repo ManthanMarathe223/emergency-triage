@@ -1,11 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Activity, BedDouble, CheckCircle2, Droplets, HeartPulse, Plus, RotateCcw, Search, Siren, Trash2, UserRound, Wind, XCircle, Zap } from 'lucide-react';
+import {
+  Activity,
+  BedDouble,
+  CheckCircle2,
+  Droplets,
+  HeartPulse,
+  Plus,
+  RotateCcw,
+  Search,
+  Siren,
+  Trash2,
+  UserRound,
+  Wind,
+  XCircle,
+  Zap,
+  ShieldCheck,
+  UserCheck,
+  ExternalLink,
+} from 'lucide-react';
 import type { Capability, Doctor, Hospital, HospitalStatus, Resource, Room, RoomStatus, RoomType, Specialty } from '../types';
 import { ALL_FACILITIES, FACILITY_LABEL, SPECIALIST, capability, loadLabel } from '../lib/capability';
 import { clamp, cn, timeAgo, uid } from '../lib/util';
 import { useNow } from '../hooks/useNow';
 import { useHospitals } from '../store/hospitals';
+import { useAuth } from '../store/auth';
 import { Button, Meter, Pill, Segmented, Stepper, Toggle } from '../components/ui';
 
 const SPECIALTIES: Specialty[] = ['Emergency Physician', 'Intensivist', 'Cardiologist', 'Neurologist', 'Trauma Surgeon', 'Burn Specialist', 'Pulmonologist', 'General Surgeon'];
@@ -24,12 +44,32 @@ export function PortalPage() {
   const update = useHospitals((s) => s.update);
   const simulateRush = useHospitals((s) => s.simulateRush);
   const reset = useHospitals((s) => s.reset);
+  const { currentAccount, quickLogin } = useAuth();
   const now = useNow(5000);
-  const [id, setId] = useState(hospitals[0].id);
+
+  // If user is logged in as a specific hospital, default to that hospital
+  const initialId = currentAccount?.hospitalId && hospitals.some((x) => x.id === currentAccount.hospitalId)
+    ? currentAccount.hospitalId
+    : hospitals[0]?.id;
+
+  const [id, setId] = useState(initialId);
   const [q, setQ] = useState('');
+
+  // Keep synced if currentAccount changes
+  useEffect(() => {
+    if (currentAccount?.hospitalId && hospitals.some((x) => x.id === currentAccount.hospitalId)) {
+      setId(currentAccount.hospitalId);
+    }
+  }, [currentAccount, hospitals]);
+
   const h = hospitals.find((x) => x.id === id) ?? hospitals[0];
   const list = hospitals.filter((x) => `${x.name} ${x.area}`.toLowerCase().includes(q.toLowerCase()));
   const upd = (note: string, fn: (h: Hospital) => Hospital) => update(h.id, note, fn);
+
+  const handleSelectHospital = (hospitalId: string) => {
+    setId(hospitalId);
+    quickLogin(hospitalId);
+  };
 
   const setRes = (key: ResKey, label: string, patch: Partial<Resource>) =>
     upd(`${label} updated`, (x) => {
@@ -40,37 +80,98 @@ export function PortalPage() {
     });
 
   return (
-    <div className="grid gap-4 p-4 lg:h-full lg:grid-cols-[320px_1fr] lg:p-5">
+    <div className="grid gap-4 p-4 lg:h-full lg:grid-cols-[330px_1fr] lg:p-5">
       {/* Hospital picker */}
       <aside className="glass flex min-h-0 flex-col overflow-hidden rounded-3xl lg:h-full">
         <div className="space-y-3 border-b border-white/8 p-4">
-          <h1 className="font-display text-base font-semibold">Hospital portal</h1>
-          <p className="text-xs leading-relaxed text-slate-400">Pick your hospital and keep its numbers current. The triage console re-ranks the moment you save a change.</p>
+          <div className="flex items-center justify-between">
+            <h1 className="font-display text-base font-semibold">Hospital Portal</h1>
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-1 rounded-lg bg-signal/15 px-2.5 py-1 text-xs font-semibold text-signal ring-1 ring-inset ring-signal/30 hover:bg-signal/25"
+            >
+              <Plus size={13} /> Enroll Hospital
+            </Link>
+          </div>
+          <p className="text-xs leading-relaxed text-slate-400">
+            Pick your hospital and keep numbers current. The triage console and 3D terrain map re-rank the instant you make changes.
+          </p>
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find your hospital" aria-label="Find your hospital"
-              className="w-full rounded-xl bg-black/30 py-2 pl-9 pr-3 text-sm outline-none ring-1 ring-inset ring-white/10 focus:ring-signal/60" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Find hospital..."
+              aria-label="Find hospital"
+              className="w-full rounded-xl bg-black/30 py-2 pl-9 pr-3 text-sm outline-none ring-1 ring-inset ring-white/10 focus:ring-signal/60"
+            />
           </div>
         </div>
+
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {list.map((x) => (
-            <button key={x.id} onClick={() => setId(x.id)} aria-pressed={x.id === h.id}
-              className={cn('w-full rounded-2xl p-3 text-left ring-1 ring-inset transition', x.id === h.id ? 'bg-brand/12 ring-brand/45' : 'bg-white/4 ring-white/8 hover:bg-white/8')}>
+            <button
+              key={x.id}
+              onClick={() => handleSelectHospital(x.id)}
+              aria-pressed={x.id === h.id}
+              className={cn(
+                'w-full rounded-2xl p-3 text-left ring-1 ring-inset transition',
+                x.id === h.id ? 'bg-brand/15 ring-brand/50' : 'bg-white/4 ring-white/8 hover:bg-white/8',
+              )}
+            >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-display text-sm font-semibold">{x.name}</span>
-                <span className={cn('h-2 w-2 rounded-full', x.status === 'open' ? 'bg-ok' : x.status === 'busy' ? 'bg-warn' : 'bg-brand')} />
+                <span className="font-display text-sm font-semibold truncate">{x.name}</span>
+                <span
+                  className={cn(
+                    'h-2 w-2 shrink-0 rounded-full',
+                    x.status === 'open' ? 'bg-ok' : x.status === 'busy' ? 'bg-warn' : 'bg-brand',
+                  )}
+                />
               </div>
-              <div className="mt-0.5 text-xs text-slate-400">{x.area} · ICU {x.icu.available}/{x.icu.total} · {timeAgo(x.updatedAt, now)}</div>
+              <div className="mt-0.5 text-xs text-slate-400">
+                {x.area} · ICU {x.icu.available}/{x.icu.total} · {timeAgo(x.updatedAt, now)}
+              </div>
+              {x.registeredOnline && (
+                <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-signal font-semibold">
+                  <CheckCircle2 size={11} /> Newly Registered Online
+                </div>
+              )}
             </button>
           ))}
         </div>
-        <div className="border-t border-white/8 p-3">
-          <Button className="w-full" onClick={() => { reset(); setId(hospitals[0].id); }}><RotateCcw size={15} />Reset demo data</Button>
+
+        <div className="space-y-2 border-t border-white/8 p-3">
+          <Link
+            to="/login"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-xs font-semibold text-slate-300 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            <ShieldCheck size={14} className="text-signal" /> Hospital Staff Login
+          </Link>
+          <Button className="w-full" onClick={() => { reset(); setId(hospitals[0].id); }}>
+            <RotateCcw size={15} /> Reset Demo Data
+          </Button>
         </div>
       </aside>
 
       {/* Editor */}
       <div className="min-h-0 space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
+        {/* Active Staff Authentication Banner */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-signal/10 px-4 py-2.5 text-xs text-slate-200 ring-1 ring-inset ring-signal/25">
+          <div className="flex items-center gap-2">
+            <UserCheck size={16} className="text-signal" />
+            <span>
+              Active Session: <strong>{currentAccount?.adminName || 'Hospital Administrator'}</strong> ({currentAccount?.role || 'Admin'}) · Managing <strong>{h.name}</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/" className="inline-flex items-center gap-1 font-semibold text-signal hover:underline">
+              <ExternalLink size={12} /> View on Triage Console
+            </Link>
+            <Link to="/login" className="text-slate-400 hover:text-white hover:underline">
+              Switch Account
+            </Link>
+          </div>
+        </div>
         <Card>
           <div className="flex flex-wrap items-start gap-4">
             <div>

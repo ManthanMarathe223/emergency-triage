@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useState, useRef, ButtonHTMLAttributes, ReactNode } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cn } from '../lib/util';
 import type { Severity } from '../types';
@@ -10,7 +10,120 @@ export const SEVERITY: Record<Severity, { label: string; text: string; bg: strin
   low: { label: 'Low priority', text: 'text-ok', bg: 'bg-ok/15', ring: 'ring-ok/40', hex: '#34d399' },
 };
 
-export function Pill({ children, tone = 'neutral', className }: { children: ReactNode; tone?: 'neutral' | 'ok' | 'bad' | 'signal' | 'warn'; className?: string }) {
+/** React Bits - Spotlight Glow Card (cursor-following radial glow) */
+export function SpotlightCard({
+  children,
+  className,
+  spotlightColor = 'rgba(34, 211, 238, 0.15)',
+}: {
+  children: ReactNode;
+  className?: string;
+  spotlightColor?: string;
+}) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!divRef.current) return;
+    const rect = divRef.current.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  return (
+    <div
+      ref={divRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setOpacity(1)}
+      onMouseLeave={() => setOpacity(0)}
+      className={cn(
+        'glass relative overflow-hidden rounded-3xl p-5 transition-all duration-300',
+        className,
+      )}
+    >
+      <div
+        className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300"
+        style={{
+          opacity,
+          background: `radial-gradient(600px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 40%)`,
+        }}
+      />
+      <div className="relative z-10">{children}</div>
+    </div>
+  );
+}
+
+/** React Bits - Shimmer Button with animated border light */
+export function ShimmerButton({
+  children,
+  className,
+  onClick,
+  type = 'button',
+  disabled,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'group relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50',
+        className,
+      )}
+    >
+      <span className="absolute inset-0 bg-gradient-to-r from-signal/0 via-signal/40 to-signal/0 opacity-0 transition-opacity group-hover:opacity-100 animate-pulse" />
+      <span className="absolute -inset-full top-0 block h-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:animate-shine" />
+      <span className="relative z-10 flex items-center gap-2">{children}</span>
+    </button>
+  );
+}
+
+/** Shadcn Style Badge */
+export function Badge({
+  children,
+  variant = 'default',
+  className,
+}: {
+  children: ReactNode;
+  variant?: 'default' | 'secondary' | 'outline' | 'destructive' | 'success' | 'signal';
+  className?: string;
+}) {
+  const styles = {
+    default: 'bg-white/10 text-white ring-white/20',
+    secondary: 'bg-slate-800 text-slate-300 ring-slate-700',
+    outline: 'bg-transparent text-slate-300 ring-white/15',
+    destructive: 'bg-brand/15 text-brand-soft ring-brand/30',
+    success: 'bg-ok/15 text-ok ring-ok/30',
+    signal: 'bg-signal/15 text-signal ring-signal/30',
+  };
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset backdrop-blur-sm',
+        styles[variant],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function Pill({
+  children,
+  tone = 'neutral',
+  className,
+}: {
+  children: ReactNode;
+  tone?: 'neutral' | 'ok' | 'bad' | 'signal' | 'warn';
+  className?: string;
+}) {
   const tones = {
     neutral: 'bg-white/6 text-slate-300 ring-white/10',
     ok: 'bg-ok/12 text-ok ring-ok/30',
@@ -18,7 +131,11 @@ export function Pill({ children, tone = 'neutral', className }: { children: Reac
     signal: 'bg-signal/12 text-signal ring-signal/30',
     warn: 'bg-warn/12 text-warn ring-warn/30',
   };
-  return <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset', tones[tone], className)}>{children}</span>;
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset', tones[tone], className)}>
+      {children}
+    </span>
+  );
 }
 
 export function Meter({ value, className }: { value: number; className?: string }) {

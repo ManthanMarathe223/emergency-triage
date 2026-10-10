@@ -16,11 +16,26 @@ export interface Resource { total: number; available: number }
 export interface Doctor { id: string; name: string; specialty: Specialty; onDuty: boolean }
 export interface Room { id: string; label: string; type: RoomType; status: RoomStatus }
 
+export interface HospitalAccount {
+  id: string;
+  hospitalId: string;
+  hospitalName: string;
+  email: string;
+  password: string;
+  adminName: string;
+  role: 'admin' | 'director' | 'triage_nurse';
+  createdAt: number;
+}
+
 export interface Hospital extends LatLng {
   id: string;
   name: string;
   area: string;
   phone: string;
+  email?: string;
+  adminName?: string;
+  registeredOnline?: boolean;
+  buildingHeight?: number;
   status: HospitalStatus;
   loadPct: number;
   beds: Resource;

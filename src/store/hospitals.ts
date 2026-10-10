@@ -9,6 +9,8 @@ const KEY = 'etriage-hospitals-v1';
 interface HospitalState {
   hospitals: Hospital[];
   activity: ActivityItem[];
+  /** Register a newly created hospital into the system */
+  addHospital: (h: Hospital) => void;
   /** Apply a change to one hospital. `note` is what shows in the live activity feed. */
   update: (id: string, note: string, fn: (h: Hospital) => Hospital) => void;
   /** Demo helper: pushes a hospital to near-full to show live re-routing on the triage page. */
@@ -21,6 +23,20 @@ export const useHospitals = create<HospitalState>()(
     (set, get) => ({
       hospitals: SEED_HOSPITALS,
       activity: [],
+      addHospital: (newHospital) =>
+        set((s) => {
+          const item: ActivityItem = {
+            id: uid(),
+            hospitalId: newHospital.id,
+            hospitalName: newHospital.name,
+            text: 'Registered as active hospital in emergency dispatch network',
+            ts: Date.now(),
+          };
+          return {
+            hospitals: [newHospital, ...s.hospitals],
+            activity: [item, ...s.activity].slice(0, 40),
+          };
+        }),
       update: (id, note, fn) =>
         set((s) => {
           const target = s.hospitals.find((h) => h.id === id);
