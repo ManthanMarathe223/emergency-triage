@@ -73,6 +73,73 @@ export interface HospitalDataDTO extends HospitalDataBody {
   recorded_at?: string | null;
 }
 
+/* ---------- POST /triage/recommend ---------- */
+
+export interface RecommendRequest {
+  latitude: number;
+  longitude: number;
+  symptoms: string[];
+  vitals?: { spo2?: number; hr?: number; sbp?: number; dbp?: number; rr?: number; temp?: number; gcs?: number };
+  age?: number;
+  described_as_severe?: boolean;
+  max_results?: number;
+}
+
+export interface LiveResource { total: number; available: number }
+export interface LiveSnapshot {
+  general_beds: LiveResource;
+  icu_beds: LiveResource;
+  ventilators: LiveResource;
+  oxygen_cylinders: number;
+  doctors_on_duty: number;
+  specialists_on_duty: string[];
+  triage_status: string;
+  reported_at?: string | null;
+  report_age_minutes?: number | null;
+}
+export interface RecommendedHospital {
+  rank: number;
+  hospital_id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  estimated_travel_minutes: number;
+  report_age_minutes?: number | null;
+  triage_status: string;
+  live: LiveSnapshot;
+  resources: { resource_type: string; total: number; reported_available: number; probability_available_at_arrival: number; prediction_status: string }[];
+  reports_enough_units: boolean;
+  probability_all_resources: number;
+  expected_minutes_to_care: number;
+  specialists_on_duty: boolean;
+  missing_specialists: string[];
+  reasons: string[];
+  warnings: string[];
+}
+export interface NotRankedHospital {
+  hospital_id: string;
+  name: string;
+  reason: string;
+  detail?: string | null;
+  distance_km?: number | null;
+  estimated_travel_minutes?: number | null;
+  live?: LiveSnapshot | null;
+}
+export interface RecommendResponse {
+  request_id: string;
+  generated_at: string;
+  triage: {
+    severity: string; urgency_level: string; category: string; score: number; reasons: string[];
+    required_facilities: string[]; required_resources: string[]; required_specialists: string[]; not_checked_by_server: string[];
+  };
+  ranking: { method: string; ml_outcome?: string; model_id?: string; diversion_penalty_minutes?: number; order?: string; hospitals_considered: number; is_reservation: boolean };
+  recommended: RecommendedHospital[];
+  not_ranked: NotRankedHospital[];
+  disclaimer: string;
+}
+
 /* ---------- token storage ---------- */
 
 interface Tokens { access: string; refresh: string }
@@ -149,15 +216,15 @@ async function refreshTokens(): Promise<boolean> {
   return refreshing;
 }
 
-interface Opts { method?: string; body?: unknown; auth?: boolean }
+interface Opts { method?: string; body?: unknown; auth?: boolean | 'optional' }
 
 async function request<T>(path: string, { method = 'GET', body, auth = false }: Opts = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth) {
     const t = getTokens();
-    if (!t) throw new ApiError(401, 'Not signed in');
-    headers.Authorization = `Bearer ${t.access}`;
+    if (t) headers.Authorization = `Bearer ${t.access}`;
+    else if (auth === true) throw new ApiError(401, 'Not signed in');
   }
 
   const send = (p: string) => fetch(`${BASE}${p}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -177,7 +244,7 @@ async function request<T>(path: string, { method = 'GET', body, auth = false }: 
     }
   }
 
-  if (res.status === 401 && auth && !retried) {
+  if (res.status === 401 && auth && getTokens() && !retried) {
     if (await refreshTokens()) return request<T>(path, { method, body, auth }, true);
     clearTokens();
     window.dispatchEvent(new Event(LOGOUT_EVENT));
@@ -196,6 +263,8 @@ export const api = {
   register: (b: HospitalRegisterBody) => request<HospitalDTO>('/hospitals/register', { method: 'POST', body: b }),
   login: (registration_number: string, password: string) =>
     request<TokenResponse>('/hospitals/login', { method: 'POST', body: { registration_number, password } }),
+  /** Public (token is sent when present, in case the endpoint is protected). */
+  recommend: (b: RecommendRequest) => request<RecommendResponse>('/triage/recommend', { method: 'POST', body: b, auth: 'optional' }),
   publicHospitals: () => request<PublicHospitalDTO[]>('/hospitals/public'),
 
   listHospitals: () => request<HospitalDTO[]>('/hospitals/', { auth: true }),

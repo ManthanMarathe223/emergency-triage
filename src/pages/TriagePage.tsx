@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api, type RecommendResponse } from '../lib/api';
+import { buildRecommendRequest, toRanked } from '../lib/recommend';
 import { Map as MapIcon, Box, Sparkles, Building2, AlertCircle, Loader2, Info } from 'lucide-react';
 import { ChatPanel } from '../components/ChatPanel';
 import { HospitalList } from '../components/HospitalList';
@@ -25,7 +27,30 @@ export function TriagePage() {
   const [mapMode, setMapMode] = useState<MapVisualizationMode>('terrain');
 
   const required = chat.triage?.required ?? DEFAULT_REQUIRED;
-  const ranked = useMemo(() => rankHospitals(hospitals, origin, required), [hospitals, origin, required]);
+
+  // Server-side ranking (POST /triage/recommend), refreshed every 10 s so live bed changes re-rank.
+  const [server, setServer] = useState<RecommendResponse | null>(null);
+  const [recoError, setRecoError] = useState<string | null>(null);
+  const reqBody = useMemo(
+    () => (chat.triage ? JSON.stringify(buildRecommendRequest(chat.patient, origin)) : null),
+    [chat.triage, chat.patient, origin],
+  );
+  useEffect(() => {
+    if (!reqBody) { setServer(null); setRecoError(null); return; }
+    let live = true;
+    const run = () =>
+      api.recommend(JSON.parse(reqBody))
+        .then((r) => { if (live) { setServer(r); setRecoError(null); } })
+        .catch((e: Error) => { if (live) { setServer(null); setRecoError(e.message); } });
+    void run();
+    const t = window.setInterval(() => { if (!document.hidden) void run(); }, 10000);
+    return () => { live = false; window.clearInterval(t); };
+  }, [reqBody]);
+
+  const ranked = useMemo(
+    () => (server ? toRanked(server, hospitals) : rankHospitals(hospitals, origin, required)),
+    [server, hospitals, origin, required],
+  );
   const triageKey = chat.triage ? `${chat.triage.severity}:${chat.triage.required.join(',')}` : '';
   const topId = ranked[0]?.hospital.id;
 
@@ -86,6 +111,24 @@ export function TriagePage() {
         {scope === 'public' && hospitals.length > 0 && (
           <div className="flex items-center gap-2 rounded-xl bg-warn/10 px-3 py-2 text-xs text-warn ring-1 ring-warn/30">
             <Info size={14} className="shrink-0" /> Showing hospital locations only. Bed, ICU and doctor availability needs a staff sign-in, so rankings are limited.
+          </div>
+        )}
+
+        {recoError && chat.triage && (
+          <div className="flex items-center gap-2 rounded-xl bg-warn/10 px-3 py-2 text-xs text-warn ring-1 ring-warn/30">
+            <AlertCircle size={14} className="shrink-0" /> Server recommendation unavailable ({recoError}). Showing basic local ranking.
+          </div>
+        )}
+        {server && (
+          <div className="space-y-1 rounded-xl bg-signal/8 px-3 py-2 text-[11px] text-slate-300 ring-1 ring-signal/25">
+            <div>
+              <strong className="text-signal">{server.triage.urgency_level}</strong> · {server.triage.category} · ranked by {server.ranking.method.replace(/_/g, ' ').toLowerCase()}
+              {server.ranking.model_id ? ` (${server.ranking.model_id})` : ''} · {server.ranking.hospitals_considered} hospitals considered
+            </div>
+            {server.triage.not_checked_by_server.length > 0 && (
+              <div className="text-slate-400">Not checked by server: {server.triage.not_checked_by_server.join(', ')}</div>
+            )}
+            <div className="text-slate-500">{server.disclaimer}</div>
           </div>
         )}
 
