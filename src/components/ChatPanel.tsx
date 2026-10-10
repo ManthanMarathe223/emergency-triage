@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowUp, Check, Mic, MicOff, Phone, Sparkles, Siren, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Check, Mic, MicOff, Phone, Stethoscope, ShieldAlert, X } from 'lucide-react';
 import type { ChatMessage, FacilityKey, PatientCase, RankedHospital, TriageResult } from '../types';
 import { FACILITY_LABEL } from '../lib/capability';
 import { whyThisHospital } from '../lib/ranking';
@@ -12,7 +12,7 @@ const SCENARIOS = [
   { title: 'Road accident', text: 'Road accident, severe bleeding, BP 85/50, HR 132' },
   { title: 'Stroke signs', text: 'Slurred speech, face droop and one-sided weakness, 67 years' },
   { title: 'Severe burns', text: 'Severe burns from a kitchen fire, 30 years' },
-  { title: 'Child with seizure', text: 'Seizure and high fever, temp 39.8, 4 years' },
+  { title: 'Child seizure', text: 'Seizure and high fever, temp 39.8, 4 years' },
   { title: 'Mild case', text: 'Abdominal pain since morning, HR 88' },
 ];
 const FOLLOW_UPS = ['Why this hospital?', 'Show other hospitals', 'Add SpO2 85', 'New patient'];
@@ -58,62 +58,70 @@ export function ChatPanel({ messages, thinking, patient, triage, ranked, onSend,
   };
 
   return (
-    <section className="glass flex h-full min-h-[560px] flex-col overflow-hidden rounded-3xl" aria-label="Emergency assessment chat">
-      <div className="flex items-center gap-3 border-b border-white/8 px-5 py-4">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand/15 text-brand-soft"><Siren size={18} /></div>
+    <section className="glass flex h-full min-h-[540px] flex-col overflow-hidden rounded-2xl" aria-label="Emergency assessment chat">
+      <div className="flex items-center gap-3 border-b border-app px-5 py-3.5 bg-surface">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+          <Stethoscope size={18} />
+        </div>
         <div className="flex-1">
-          <h1 className="font-display text-base font-semibold">Emergency assessment</h1>
-          <p className="text-xs text-slate-400">Symptoms and vitals in. Severity and hospital out.</p>
+          <h1 className="font-display text-sm font-bold text-primary">Emergency Triage Assistant</h1>
+          <p className="text-xs text-secondary">Input clinical presentation for decision support ranking</p>
         </div>
         {triage && (
           <Pill tone="neutral">{patient.symptoms.length} symptoms · {Object.keys(patient.vitals).length} vitals</Pill>
         )}
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+      <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 bg-app">
         {messages.map((m) => <Bubble key={m.id} m={m} ranked={ranked} triage={triage} onSelect={onSelect} />)}
         {thinking && (
-          <div className="flex w-fit gap-1.5 rounded-2xl bg-white/6 px-4 py-3" aria-label="Analysing">
-            {[0, 1, 2].map((i) => (
-              <motion.span key={i} className="h-2 w-2 rounded-full bg-slate-300" animate={{ opacity: [0.25, 1, 0.25], y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.9, delay: i * 0.15 }} />
-            ))}
+          <div className="flex w-fit items-center gap-2 rounded-xl border border-app bg-surface px-4 py-2 text-xs text-secondary" aria-label="Analysing">
+            <span className="font-medium">Evaluating symptoms and vitals...</span>
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-blue-600" animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }} transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }} />
+              ))}
+            </div>
           </div>
         )}
         {!started && (
-          <div className="grid gap-2 pt-1 sm:grid-cols-2">
-            {SCENARIOS.map((s) => (
-              <button key={s.title} onClick={() => onSend(s.text)}
-                className="group rounded-2xl bg-white/4 p-3 text-left ring-1 ring-inset ring-white/8 transition hover:bg-white/8 hover:ring-brand/40">
-                <div className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={14} className="text-brand-soft" />{s.title}</div>
-                <div className="mt-1 text-xs leading-relaxed text-slate-400">{s.text}</div>
-              </button>
-            ))}
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted">Quick Clinical Scenarios</div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SCENARIOS.map((s) => (
+                <button key={s.title} onClick={() => onSend(s.text)}
+                  className="group rounded-xl border border-app bg-surface p-3 text-left transition hover:border-blue-500 hover:bg-surface-elevated cursor-pointer">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400">{s.title}</div>
+                  <div className="mt-1 text-xs text-secondary line-clamp-2 leading-relaxed">{s.text}</div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <div ref={endRef} />
       </div>
 
-      <div className="border-t border-white/8 p-4">
+      <div className="border-t border-app p-3.5 bg-surface">
         {started && (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="mb-2.5 flex flex-wrap gap-1.5">
             {FOLLOW_UPS.map((f) => (
-              <button key={f} onClick={() => onSend(f)} className="rounded-full bg-white/6 px-3 py-1.5 text-xs font-medium text-slate-200 ring-1 ring-inset ring-white/10 transition hover:bg-white/12">{f}</button>
+              <button key={f} onClick={() => onSend(f)} className="rounded-lg border border-app bg-surface-elevated px-2.5 py-1 text-xs font-medium text-secondary hover:text-primary hover:bg-surface-muted transition cursor-pointer">{f}</button>
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-2xl bg-black/30 p-2 ring-1 ring-inset ring-white/10 focus-within:ring-brand/60">
+        <div className="flex items-center gap-2 rounded-xl border border-app bg-surface-elevated p-1.5 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600">
           <textarea
             value={text} rows={1} onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            placeholder="e.g. chest pain, difficulty breathing, SpO2 88, HR 120"
-            className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-slate-500"
-            aria-label="Describe the emergency"
+            placeholder="Describe symptoms, SpO2, HR, BP, or age..."
+            className="max-h-24 min-h-9 flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs text-primary outline-none placeholder:text-muted"
+            aria-label="Describe the emergency presentation"
           />
           <button onClick={toggleMic} aria-label={listening ? 'Stop voice input' : 'Start voice input'}
-            className={cn('grid h-10 w-10 place-items-center rounded-xl transition', listening ? 'bg-brand text-white' : 'text-slate-400 hover:bg-white/8 hover:text-white')}>
-            {listening ? <MicOff size={18} /> : <Mic size={18} />}
+            className={cn('grid h-8 w-8 place-items-center rounded-lg transition cursor-pointer', listening ? 'bg-red-600 text-white' : 'text-secondary hover:bg-surface-muted hover:text-primary')}>
+            {listening ? <MicOff size={15} /> : <Mic size={15} />}
           </button>
-          <Button variant="primary" className="h-10 w-10 !p-0" onClick={() => submit()} aria-label="Send"><ArrowUp size={18} /></Button>
+          <Button variant="primary" className="h-8 w-8 !p-0 shrink-0" onClick={() => submit()} aria-label="Send"><ArrowUp size={15} /></Button>
         </div>
       </div>
     </section>
@@ -123,9 +131,9 @@ export function ChatPanel({ messages, thinking, patient, triage, ranked, onSend,
 function Bubble({ m, ranked, triage, onSelect }: { m: ChatMessage; ranked: RankedHospital[]; triage: TriageResult | null; onSelect: (id: string) => void }) {
   const mine = m.role === 'user';
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className={cn('flex', mine && 'justify-end')}>
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className={cn('flex', mine && 'justify-end')}>
       {m.kind === 'text' && (
-        <div className={cn('max-w-[88%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed', mine ? 'rounded-br-md bg-gradient-to-br from-brand to-[#c2203d] text-white' : 'rounded-bl-md bg-white/6 text-slate-200')}>
+        <div className={cn('max-w-[88%] rounded-xl px-3.5 py-2 text-xs leading-relaxed border', mine ? 'bg-blue-600 text-white border-blue-600 font-medium' : 'bg-surface text-primary border-app')}>
           {m.text}
         </div>
       )}
@@ -139,22 +147,40 @@ function Bubble({ m, ranked, triage, onSelect }: { m: ChatMessage; ranked: Ranke
 function TriageCard({ t }: { t: TriageResult }) {
   const s = SEVERITY[t.severity];
   return (
-    <div className={cn('w-full max-w-[96%] rounded-2xl p-4 ring-1 ring-inset', s.bg, s.ring)}>
-      <div className="flex items-center gap-3">
-        <div className={cn('grid h-10 w-10 place-items-center rounded-xl bg-black/30', s.text)}><AlertTriangle size={20} /></div>
-        <div>
-          <div className={cn('font-display text-lg font-semibold', s.text)}>{s.label}</div>
-          <div className="text-sm text-slate-200">{t.category}</div>
+    <div className={cn('w-full max-w-[98%] rounded-xl p-4 border space-y-3', s.bg, s.border)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-surface border border-app shadow-xs">
+            <AlertTriangle size={18} className={s.text} />
+          </div>
+          <div>
+            <div className={cn('font-display text-sm font-bold', s.text)}>{s.label}</div>
+            <div className="text-xs font-semibold text-secondary">{s.level} · {t.category}</div>
+          </div>
+        </div>
+        <span className={cn('rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider', s.badge)}>
+          {t.severity}
+        </span>
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold text-muted mb-1">Clinical Reasoning Indicators</div>
+        <div className="flex flex-wrap gap-1.5">
+          {t.reasons.map((r) => <Pill key={r} tone="neutral">{r}</Pill>)}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {t.reasons.map((r) => <Pill key={r}>{r}</Pill>)}
+
+      <div>
+        <div className="text-[11px] font-semibold text-muted mb-1">Required Specialist Facilities</div>
+        <div className="flex flex-wrap gap-1.5">
+          {t.required.map((k: FacilityKey) => <Pill key={k} tone="signal"><Check size={11} />{FACILITY_LABEL[k]}</Pill>)}
+        </div>
       </div>
-      <div className="mt-3 text-xs text-slate-400">Facilities needed</div>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {t.required.map((k: FacilityKey) => <Pill key={k} tone="signal"><Check size={12} />{FACILITY_LABEL[k]}</Pill>)}
+
+      <div className="pt-1 border-t border-app/50 text-[11px] text-muted flex items-center gap-1.5">
+        <ShieldAlert size={12} className="shrink-0" />
+        <span>Clinical decision support only. Predictions do not replace professional medical judgment.</span>
       </div>
-      <p className="mt-3 text-[11px] text-slate-400">Decision support only. This is not a diagnosis.</p>
     </div>
   );
 }
@@ -163,34 +189,38 @@ function RecoCard({ top, active, onSelect }: { top?: RankedHospital; active: boo
   if (!top || !active) return null;
   const h = top.hospital;
   return (
-    <div className="w-full max-w-[96%] overflow-hidden rounded-2xl bg-gradient-to-br from-signal/16 to-white/4 ring-1 ring-inset ring-signal/35">
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-medium text-signal">{top.suitable ? 'Recommended hospital' : 'Closest partial match'}</div>
-            <div className="font-display text-lg font-semibold">{h.name}</div>
-            <div className="text-xs text-slate-400">{h.area}</div>
-          </div>
-          <div className="text-right">
-            <div className="font-display text-3xl font-semibold leading-none">{top.etaMin}<span className="ml-1 text-sm font-medium text-slate-400">min</span></div>
-            <div className="mt-1 text-xs text-slate-400">{top.distanceKm.toFixed(1)} km</div>
-          </div>
+    <div className="w-full max-w-[98%] rounded-xl border border-blue-200 dark:border-blue-800/70 bg-blue-50/70 dark:bg-blue-950/40 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3 border-b border-blue-200 dark:border-blue-800/50 pb-3">
+        <div>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+            {top.suitable ? 'Recommended Hospital' : 'Closest Partial Match'}
+          </span>
+          <h3 className="font-display text-base font-bold text-primary mt-0.5">{h.name}</h3>
+          <div className="text-xs text-secondary">{h.area}</div>
         </div>
+        <div className="text-right">
+          <div className="font-display text-2xl font-bold text-primary">{top.etaMin}<span className="text-xs font-medium text-secondary"> min</span></div>
+          <div className="text-xs text-secondary">{top.distanceKm.toFixed(1)} km</div>
+        </div>
+      </div>
 
-        <div className="mt-4 text-sm font-semibold">Why this hospital?</div>
-        <ul className="mt-2 space-y-1.5">
+      <div>
+        <div className="text-xs font-semibold text-primary mb-1.5">Matching Criteria Rationale</div>
+        <ul className="space-y-1 text-xs">
           {whyThisHospital(top).map((w) => (
-            <li key={w} className="flex items-start gap-2 text-sm text-slate-200"><Check size={15} className="mt-0.5 shrink-0 text-ok" />{w}</li>
+            <li key={w} className="flex items-start gap-1.5 text-secondary"><Check size={14} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />{w}</li>
           ))}
           {top.missing.map((w) => (
-            <li key={w.key} className="flex items-start gap-2 text-sm text-warn"><X size={15} className="mt-0.5 shrink-0" />{w.detail}. Call ahead to confirm.</li>
+            <li key={w.key} className="flex items-start gap-1.5 text-amber-700 dark:text-amber-400"><X size={14} className="mt-0.5 shrink-0" />{w.detail}. Call ahead to confirm.</li>
           ))}
         </ul>
+      </div>
 
-        <div className="mt-4 flex gap-2">
-          <Button variant="primary" onClick={() => onSelect(h.id)}>View on map</Button>
-          <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 rounded-xl bg-white/6 px-3.5 py-2 text-sm font-semibold text-slate-200 ring-1 ring-inset ring-white/10 hover:bg-white/10"><Phone size={15} />Call</a>
-        </div>
+      <div className="flex gap-2 pt-1">
+        <Button variant="primary" className="py-1.5 text-xs" onClick={() => onSelect(h.id)}>Focus on Map</Button>
+        <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 rounded-xl border border-app bg-surface px-3 py-1.5 text-xs font-semibold text-primary hover:bg-surface-elevated">
+          <Phone size={13} /> {h.phone}
+        </a>
       </div>
     </div>
   );
@@ -198,12 +228,12 @@ function RecoCard({ top, active, onSelect }: { top?: RankedHospital; active: boo
 
 function ListCard({ ranked, onSelect }: { ranked: RankedHospital[]; onSelect: (id: string) => void }) {
   return (
-    <div className="w-full max-w-[96%] rounded-2xl bg-white/5 p-3 ring-1 ring-inset ring-white/10">
-      <div className="px-1 pb-2 text-sm font-semibold">Other suitable hospitals</div>
+    <div className="w-full max-w-[98%] rounded-xl border border-app bg-surface p-3 space-y-2">
+      <div className="text-xs font-semibold text-primary px-1">Other Qualified Facilities</div>
       {ranked.slice(0, 4).map((r) => (
-        <button key={r.hospital.id} onClick={() => onSelect(r.hospital.id)} className="flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm hover:bg-white/8">
-          <span>{r.hospital.name}</span>
-          <span className="flex items-center gap-2 text-xs text-slate-400">{r.etaMin} min<Pill tone={r.suitable ? 'ok' : 'bad'}>{r.suitable ? 'Suitable' : 'Missing facility'}</Pill></span>
+        <button key={r.hospital.id} onClick={() => onSelect(r.hospital.id)} className="flex w-full items-center justify-between rounded-lg p-2 text-left text-xs hover:bg-surface-elevated transition cursor-pointer">
+          <span className="font-medium text-primary">{r.hospital.name}</span>
+          <span className="flex items-center gap-2 text-secondary">{r.etaMin} min<Pill tone={r.suitable ? 'ok' : 'bad'}>{r.suitable ? 'Suitable' : 'Missing facility'}</Pill></span>
         </button>
       ))}
     </div>

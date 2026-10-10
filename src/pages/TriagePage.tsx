@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapIcon, Box, Sparkles, Building2 } from 'lucide-react';
+import { Map as MapIcon, Box, Activity, Building2 } from 'lucide-react';
 import { ChatPanel } from '../components/ChatPanel';
 import { HospitalList } from '../components/HospitalList';
 import { Scene3D } from '../components/Scene3D';
@@ -38,9 +38,9 @@ export function TriagePage() {
     if (triageKey && p.key === triageKey && p.top && topId && p.top !== topId) {
       const name = ranked[0].hospital.name;
       chat.pushBot(
-        `A hospital's status just updated in real time. The top recommendation is now ${name}${
+        `A hospital's status updated in real time. Top recommendation is now ${name}${
           ranked[0].suitable ? '' : ' (closest partial match)'
-        }.`,
+        }.`
       );
       setSelectedId(topId);
     }
@@ -48,7 +48,7 @@ export function TriagePage() {
   }, [topId, triageKey, ranked, chat]);
 
   return (
-    <div className="grid gap-4 p-4 lg:h-full lg:grid-cols-[minmax(400px,5fr)_7fr] lg:p-5">
+    <div className="grid gap-4 p-4 lg:h-full lg:grid-cols-[minmax(380px,5fr)_7fr] lg:p-5">
       {/* Left Column: Triage Assistant & Clinical Reasoning */}
       <div className="min-h-0 lg:h-full">
         <ChatPanel
@@ -62,46 +62,46 @@ export function TriagePage() {
         />
       </div>
 
-      {/* Right Column: High-Impact Real Terrain & 3D Hospital Map Console */}
+      {/* Right Column: Terrain Map & Hospital Capability Console */}
       <div className="flex min-h-0 flex-col gap-3">
         {/* Map Control Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">
-            <span className="font-display text-sm font-bold text-white flex items-center gap-1.5">
-              <Sparkles size={16} className="text-signal" /> Emergency Dispatch Telemetry
+            <span className="font-display text-sm font-bold text-primary flex items-center gap-1.5">
+              <Activity size={16} className="text-blue-600 dark:text-blue-400" /> Dispatch Telemetry
             </span>
             <Badge variant="signal">
-              <Building2 size={12} /> {hospitals.length} Hospitals Live
+              <Building2 size={12} /> {hospitals.length} Facilities Active
             </Badge>
           </div>
 
           {/* Visualization Mode Toggle */}
-          <div className="flex rounded-xl bg-slate-900/90 p-1 ring-1 ring-inset ring-white/15 backdrop-blur-md">
+          <div className="flex rounded-xl bg-surface-elevated p-1 border border-app">
             <button
               onClick={() => setMapMode('terrain')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                 mapMode === 'terrain'
-                  ? 'bg-signal text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-secondary hover:text-primary'
               }`}
             >
-              <MapIcon size={14} /> Real Google Terrain Map
+              <MapIcon size={13} /> Terrain Map
             </button>
             <button
               onClick={() => setMapMode('3d')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition cursor-pointer ${
                 mapMode === '3d'
-                  ? 'bg-signal text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-secondary hover:text-primary'
               }`}
             >
-              <Box size={14} /> 3D Architectural Scene
+              <Box size={13} /> 3D City View
             </button>
           </div>
         </div>
 
-        {/* High-Impact Full-Featured Map Viewport */}
-        <div className="h-[460px] shrink-0 lg:h-[54%] transition-all">
+        {/* Map Viewport Container */}
+        <div className="h-[420px] shrink-0 lg:h-[52%] transition-all">
           {mapMode === 'terrain' ? (
             <TerrainMap
               origin={origin}
