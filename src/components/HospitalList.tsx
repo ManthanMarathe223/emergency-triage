@@ -132,7 +132,7 @@ function HospitalCard({ r, required, triageActive, isBest, open, onToggle }: { r
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="space-y-4 border-t border-white/8 p-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {([['Beds', h.beds], ['ICU', h.icu], ['Ventilators', h.ventilators], ['ER bays', h.erBays]] as const).map(([label, v]) => (
+                {([['Beds', h.beds], ['ICU', h.icu], ['Ventilators', h.ventilators], ['Doctors', { total: h.doctorsTotal, available: h.doctorsAvailable }]] as const).map(([label, v]) => (
                   <div key={label} className="rounded-xl bg-black/25 p-3">
                     <div className="text-xs text-slate-400">{label}</div>
                     <div className={cn('font-display text-lg font-semibold', v.available === 0 && 'text-brand-soft')}>{v.available}<span className="text-xs font-medium text-slate-500"> / {v.total}</span></div>
@@ -150,7 +150,7 @@ function HospitalCard({ r, required, triageActive, isBest, open, onToggle }: { r
                   {onDuty.length ? onDuty.map((d) => <Pill key={d.id}>{d.name} · {d.specialty}</Pill>) : <span className="text-sm text-slate-500">No doctors marked on duty</span>}
                 </div>
               </div>
-              <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 rounded-xl bg-white/6 px-3.5 py-2 text-sm font-semibold ring-1 ring-inset ring-white/10 hover:bg-white/10"><Phone size={15} />{h.phone}</a>
+              {h.phone && <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 rounded-xl bg-white/6 px-3.5 py-2 text-sm font-semibold ring-1 ring-inset ring-white/10 hover:bg-white/10"><Phone size={15} />{h.phone}</a>}
             </div>
           </motion.div>
         )}

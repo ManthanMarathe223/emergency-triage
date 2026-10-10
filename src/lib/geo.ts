@@ -20,3 +20,6 @@ export function etaMinutes(km: number): number {
 export function toLocalKm(origin: LatLng, p: LatLng) {
   return { x: (p.lng - origin.lng) * 111.32 * Math.cos(rad(origin.lat)), z: -(p.lat - origin.lat) * 110.57 };
 }
+
+/** Default map centre for the patient location until GPS is used (Akurdi, Pimpri-Chinchwad). Not hospital data. */
+export const DEFAULT_ORIGIN: LatLng = { lat: 18.6489, lng: 73.7716 };

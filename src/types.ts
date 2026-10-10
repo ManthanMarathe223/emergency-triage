@@ -1,12 +1,8 @@
 export type Severity = 'critical' | 'high' | 'moderate' | 'low';
 export type Capability = 'trauma' | 'cardiac' | 'neuro' | 'burn';
-export type FacilityKey = 'emergency' | 'icu' | 'ventilator' | 'bloodBank' | Capability;
+export type FacilityKey = 'emergency' | 'icu' | 'ventilator' | 'oxygen' | Capability;
 export type HospitalStatus = 'open' | 'busy' | 'diverting';
-export type Specialty =
-  | 'Emergency Physician' | 'Intensivist' | 'Cardiologist' | 'Neurologist'
-  | 'Trauma Surgeon' | 'Burn Specialist' | 'Pulmonologist' | 'General Surgeon';
-export type RoomType = 'ICU' | 'OT' | 'ER' | 'Ward';
-export type RoomStatus = 'available' | 'occupied' | 'cleaning';
+export type Specialty = string;
 export type SymptomKey =
   | 'chest_pain' | 'breathing' | 'bleeding' | 'unconscious' | 'abdominal' | 'head_injury'
   | 'stroke' | 'burns' | 'trauma' | 'seizure' | 'fever';
@@ -14,38 +10,34 @@ export type SymptomKey =
 export interface LatLng { lat: number; lng: number }
 export interface Resource { total: number; available: number }
 export interface Doctor { id: string; name: string; specialty: Specialty; onDuty: boolean }
-export interface Room { id: string; label: string; type: RoomType; status: RoomStatus }
 
-export interface HospitalAccount {
-  id: string;
-  hospitalId: string;
-  hospitalName: string;
-  email: string;
-  password: string;
-  adminName: string;
-  role: 'admin' | 'director' | 'triage_nurse';
-  createdAt: number;
-}
-
+/** Everything here comes from the backend (hospitals + hospitals-data). Nothing is predefined. */
 export interface Hospital extends LatLng {
   id: string;
   name: string;
+  /** Backend `address` */
   area: string;
-  phone: string;
+  registrationNumber?: string;
+  phone?: string;
   email?: string;
-  adminName?: string;
-  registeredOnline?: boolean;
-  buildingHeight?: number;
+  /** Mapped from the backend `triage_status` */
   status: HospitalStatus;
+  /** Derived from bed occupancy (general + ICU) */
   loadPct: number;
   beds: Resource;
   icu: Resource;
   ventilators: Resource;
-  erBays: Resource;
-  bloodUnits: number;
+  oxygen: number;
+  doctorsTotal: number;
+  doctorsAvailable: number;
+  /** Derived from the specialisations of listed doctors */
   facilities: Record<Capability, boolean>;
   doctors: Doctor[];
-  rooms: Room[];
+  notes?: string;
+  /** Id of the latest operational record, used for PATCH */
+  dataId?: string;
+  /** False when the backend has no operational record for this hospital */
+  hasOpsData: boolean;
   updatedAt: number;
 }
 

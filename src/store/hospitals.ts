@@ -1,70 +1,108 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { SEED_HOSPITALS, DEFAULT_ORIGIN } from '../data/seed';
+import { api, ApiError, getTokens } from '../lib/api';
 import type { ActivityItem, Hospital, LatLng } from '../types';
-import { clamp, uid } from '../lib/util';
+import { DEFAULT_ORIGIN } from '../lib/geo';
+import { latestByHospital, toDataBody, toDoctorDTO, toHospital, toPublicHospital, recordId, STATUS_TO_TRIAGE } from '../lib/mappers';
+import { uid } from '../lib/util';
 
-const KEY = 'etriage-hospitals-v1';
+const POLL_MS = 8000;
 
 interface HospitalState {
   hospitals: Hospital[];
+  /** Changes made in this browser session (local log, not stored in the DB). */
   activity: ActivityItem[];
-  /** Register a newly created hospital into the system */
-  addHospital: (h: Hospital) => void;
-  /** Apply a change to one hospital. `note` is what shows in the live activity feed. */
-  update: (id: string, note: string, fn: (h: Hospital) => Hospital) => void;
-  /** Demo helper: pushes a hospital to near-full to show live re-routing on the triage page. */
-  simulateRush: (id: string) => void;
-  reset: () => void;
+  loading: boolean;
+  error: string | null;
+  /** 'full' = signed in, real capacity data. 'public' = backend only exposes name + location. */
+  scope: 'full' | 'public';
+  lastSyncedAt: number | null;
+  refresh: () => Promise<void>;
+  startPolling: () => () => void;
+  /** Optimistically apply `fn`, then persist the difference to the backend. */
+  update: (id: string, note: string, fn: (h: Hospital) => Hospital) => Promise<void>;
 }
 
-export const useHospitals = create<HospitalState>()(
-  persist(
-    (set, get) => ({
-      hospitals: SEED_HOSPITALS,
-      activity: [],
-      addHospital: (newHospital) =>
-        set((s) => {
-          const item: ActivityItem = {
-            id: uid(),
-            hospitalId: newHospital.id,
-            hospitalName: newHospital.name,
-            text: 'Registered as active hospital in emergency dispatch network',
-            ts: Date.now(),
-          };
-          return {
-            hospitals: [newHospital, ...s.hospitals],
-            activity: [item, ...s.activity].slice(0, 40),
-          };
-        }),
-      update: (id, note, fn) =>
-        set((s) => {
-          const target = s.hospitals.find((h) => h.id === id);
-          if (!target) return s;
-          const next = { ...fn(target), updatedAt: Date.now() };
-          const item: ActivityItem = { id: uid(), hospitalId: id, hospitalName: target.name, text: note, ts: Date.now() };
-          return { hospitals: s.hospitals.map((h) => (h.id === id ? next : h)), activity: [item, ...s.activity].slice(0, 40) };
-        }),
-      simulateRush: (id) =>
-        get().update(id, 'Rush of incoming cases: ICU and ventilators full', (h) => ({
-          ...h, loadPct: 97, status: 'busy',
-          icu: { ...h.icu, available: 0 }, ventilators: { ...h.ventilators, available: 0 },
-          erBays: { ...h.erBays, available: Math.min(1, h.erBays.available) },
-        })),
-      reset: () => set({ hospitals: SEED_HOSPITALS.map((h) => ({ ...h, updatedAt: Date.now() })), activity: [] }),
-    }),
-    { name: KEY },
-  ),
-);
+let pendingWrites = 0;
+let writeChain: Promise<unknown> = Promise.resolve();
 
-/** Real-time sync across browser tabs: edit in the portal tab, watch the triage tab re-rank instantly. */
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === KEY) void useHospitals.persist.rehydrate();
-  });
-}
+export const useHospitals = create<HospitalState>()((set, get) => ({
+  hospitals: [],
+  activity: [],
+  loading: false,
+  error: null,
+  scope: 'public',
+  lastSyncedAt: null,
 
-export const clampRes = (v: number, total: number) => clamp(v, 0, total);
+  refresh: async () => {
+    if (pendingWrites > 0) return; // do not overwrite an in-flight edit
+    set({ loading: get().lastSyncedAt === null });
+    try {
+      if (getTokens()) {
+        try {
+          const [list, records] = await Promise.all([api.listHospitals(), api.listData(500)]);
+          const latest = latestByHospital(records);
+          const hospitals = list.filter((h) => h.is_active).map((h) => toHospital(h, latest.get(h.id)));
+          set({ hospitals, scope: 'full', error: null, lastSyncedAt: Date.now(), loading: false });
+          return;
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.status !== 401) throw e;
+          // token rejected: fall through to the public list
+        }
+      }
+      const pub = await api.publicHospitals();
+      set({ hospitals: pub.map(toPublicHospital), scope: 'public', error: null, lastSyncedAt: Date.now(), loading: false });
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : 'Failed to load hospitals', loading: false });
+    }
+  },
+
+  startPolling: () => {
+    void get().refresh();
+    const t = window.setInterval(() => { if (!document.hidden) void get().refresh(); }, POLL_MS);
+    const onVisible = () => { if (!document.hidden) void get().refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
+  },
+
+  update: async (id, note, fn) => {
+    const before = get().hospitals.find((h) => h.id === id);
+    if (!before) return;
+    const after: Hospital = { ...fn(before), updatedAt: Date.now() };
+    const item: ActivityItem = { id: uid(), hospitalId: id, hospitalName: before.name, text: note, ts: Date.now() };
+    set((s) => ({ hospitals: s.hospitals.map((h) => (h.id === id ? after : h)), activity: [item, ...s.activity].slice(0, 40), error: null }));
+
+    pendingWrites++;
+    const job = writeChain.then(async () => {
+      try {
+        const bedsChanged = before.beds.total !== after.beds.total || before.beds.available !== after.beds.available;
+        if (!after.dataId) {
+          const created = await api.createData(toDataBody(after));
+          const newId = recordId(created);
+          set((s) => ({ hospitals: s.hospitals.map((h) => (h.id === id ? { ...h, dataId: newId, hasOpsData: true } : h)) }));
+        } else {
+          const patch: Record<string, unknown> = {};
+          if (bedsChanged) Object.assign(patch, { general_beds_total: after.beds.total, general_beds_available: after.beds.available });
+          if (before.icu.total !== after.icu.total || before.icu.available !== after.icu.available) Object.assign(patch, { icu_beds_total: after.icu.total, icu_beds_available: after.icu.available });
+          if (before.ventilators.total !== after.ventilators.total || before.ventilators.available !== after.ventilators.available) Object.assign(patch, { ventilators_total: after.ventilators.total, ventilators_available: after.ventilators.available });
+          if (before.oxygen !== after.oxygen) patch.oxygen_cylinders = after.oxygen;
+          if (before.status !== after.status) patch.triage_status = STATUS_TO_TRIAGE[after.status];
+          if (before.doctors !== after.doctors) Object.assign(patch, { doctors: after.doctors.map(toDoctorDTO), doctors_total: after.doctorsTotal, doctors_available: after.doctorsAvailable });
+          if (before.notes !== after.notes) patch.notes = after.notes ?? '';
+          if (Object.keys(patch).length) await api.patchData(after.dataId, patch);
+        }
+        if (bedsChanged) await api.updateAvailability(id, after.beds.total, after.beds.available);
+      } catch (e) {
+        // roll back the optimistic change
+        set((s) => ({ hospitals: s.hospitals.map((h) => (h.id === id ? before : h)), error: e instanceof Error ? e.message : 'Save failed' }));
+      } finally {
+        pendingWrites--;
+      }
+    });
+    writeChain = job;
+    await job;
+    void get().refresh();
+  },
+}));
 
 interface SessionState {
   origin: LatLng;

@@ -189,7 +189,7 @@ function RecoCard({ top, active, onSelect }: { top?: RankedHospital; active: boo
 
         <div className="mt-4 flex gap-2">
           <Button variant="primary" onClick={() => onSelect(h.id)}>View on map</Button>
-          <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 rounded-xl bg-white/6 px-3.5 py-2 text-sm font-semibold text-slate-200 ring-1 ring-inset ring-white/10 hover:bg-white/10"><Phone size={15} />Call</a>
+          {h.phone && <a href={`tel:${h.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-2 rounded-xl bg-white/6 px-3.5 py-2 text-sm font-semibold text-slate-200 ring-1 ring-inset ring-white/10 hover:bg-white/10"><Phone size={15} />Call</a>}
         </div>
       </div>
     </div>

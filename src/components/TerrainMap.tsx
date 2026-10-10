@@ -248,7 +248,7 @@ export function TerrainMap({ origin, ranked, selectedId, onSelect, triageActive 
       marker.bindPopup(`
         <div style="font-family: inherit; font-size: 12px; color: #0c1220; min-width: 180px;">
           <div style="font-weight: 800; font-size: 14px; color: #0f172a;">${h.name}</div>
-          <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">${h.area} · ${h.phone}</div>
+          <div style="color: #64748b; font-size: 11px; margin-bottom: 6px;">${h.area}${h.phone ? ' · ' + h.phone : ''}</div>
           <div style="display: flex; gap: 6px; margin-bottom: 6px;">
             <span style="background: #0f172a; color: #38bdf8; padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700;">
               ETA: ${r.etaMin} min

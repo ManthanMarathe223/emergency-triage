@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapIcon, Box, Sparkles, Building2 } from 'lucide-react';
+import { Map as MapIcon, Box, Sparkles, Building2, AlertCircle, Loader2, Info } from 'lucide-react';
 import { ChatPanel } from '../components/ChatPanel';
 import { HospitalList } from '../components/HospitalList';
 import { Scene3D } from '../components/Scene3D';
@@ -16,6 +16,9 @@ type MapVisualizationMode = 'terrain' | '3d';
 
 export function TriagePage() {
   const hospitals = useHospitals((s) => s.hospitals);
+  const scope = useHospitals((s) => s.scope);
+  const loading = useHospitals((s) => s.loading);
+  const error = useHospitals((s) => s.error);
   const origin = useSession((s) => s.origin);
   const chat = useChat();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -64,6 +67,28 @@ export function TriagePage() {
 
       {/* Right Column: High-Impact Real Terrain & 3D Hospital Map Console */}
       <div className="flex min-h-0 flex-col gap-3">
+        {/* Data status */}
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl bg-red-500/15 px-3 py-2 text-xs text-red-300 ring-1 ring-red-500/30">
+            <AlertCircle size={14} className="shrink-0" /> {error}
+          </div>
+        )}
+        {loading && hospitals.length === 0 && (
+          <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10">
+            <Loader2 size={14} className="animate-spin" /> Loading hospitals from the database…
+          </div>
+        )}
+        {!loading && !error && hospitals.length === 0 && (
+          <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs text-slate-300 ring-1 ring-white/10">
+            <Info size={14} className="shrink-0" /> No hospitals are registered yet. Register one to see it here.
+          </div>
+        )}
+        {scope === 'public' && hospitals.length > 0 && (
+          <div className="flex items-center gap-2 rounded-xl bg-warn/10 px-3 py-2 text-xs text-warn ring-1 ring-warn/30">
+            <Info size={14} className="shrink-0" /> Showing hospital locations only. Bed, ICU and doctor availability needs a staff sign-in, so rankings are limited.
+          </div>
+        )}
+
         {/* Map Control Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2">

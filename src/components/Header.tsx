@@ -19,8 +19,9 @@ import { cn, timeAgo } from '../lib/util';
 
 export function Header() {
   const { locate, locating, usingGps } = useSession();
-  const latest = useHospitals((s) => Math.max(...s.hospitals.map((h) => h.updatedAt)));
-  const { currentAccount, logout } = useAuth();
+  const lastSynced = useHospitals((s) => s.lastSyncedAt);
+  const syncError = useHospitals((s) => s.error);
+  const { isAuthenticated, registrationNumber, logout } = useAuth();
   const now = useNow(5000);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -81,11 +82,11 @@ export function Header() {
         {/* Right Tools & Auth Status */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Active Logged-in Staff Badge */}
-          {currentAccount ? (
+          {isAuthenticated ? (
             <div className="hidden items-center gap-2 rounded-xl bg-signal/15 px-3 py-1.5 text-xs text-white ring-1 ring-inset ring-signal/30 xl:flex">
               <UserCheck size={14} className="text-signal" />
               <span className="font-medium truncate max-w-[150px]">
-                {currentAccount.hospitalName}
+                {registrationNumber ?? 'Signed in'}
               </span>
               <button
                 onClick={logout}
@@ -106,8 +107,8 @@ export function Header() {
 
           {/* Live Data Pulse */}
           <div className="hidden items-center gap-2 rounded-full bg-white/6 px-3 py-1.5 text-xs text-slate-300 ring-1 ring-inset ring-white/10 sm:flex">
-            <span className="ping h-2 w-2 rounded-full bg-ok" />
-            <span className="text-[11px]">Live sync · {timeAgo(latest, now)}</span>
+            <span className={cn('h-2 w-2 rounded-full', syncError ? 'bg-brand' : 'ping bg-ok')} />
+            <span className="text-[11px]">{syncError ? 'Sync error' : lastSynced ? `Live sync · ${timeAgo(lastSynced, now)}` : 'Connecting…'}</span>
           </div>
 
           {/* GPS Location Button */}

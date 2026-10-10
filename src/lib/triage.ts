@@ -89,7 +89,7 @@ export function assess(c: PatientCase): TriageResult {
   if (has('chest_pain')) { req.add('cardiac'); if (serious) req.add('icu'); }
   if (respiratory && serious) req.add('icu');
   if (respiratory && severity === 'critical') req.add('ventilator');
-  if (has('trauma') || has('bleeding')) { req.add('trauma'); if (serious) req.add('bloodBank'); }
+  if (has('trauma') || has('bleeding')) { req.add('trauma'); if (serious) req.add('oxygen'); }
   if (has('stroke') || has('head_injury')) req.add('neuro');
   if (has('seizure') && serious) req.add('neuro');
   if (has('unconscious')) req.add('icu');
