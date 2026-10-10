@@ -20,9 +20,8 @@ export interface HospitalAccount {
   id: string;
   hospitalId: string;
   hospitalName: string;
-  registrationNumber?: string;
   email: string;
-  password?: string;
+  password: string;
   adminName: string;
   role: 'admin' | 'director' | 'triage_nurse';
   createdAt: number;
@@ -31,9 +30,7 @@ export interface HospitalAccount {
 export interface Hospital extends LatLng {
   id: string;
   name: string;
-  registrationNumber?: string;
   area: string;
-  address?: string;
   phone: string;
   email?: string;
   adminName?: string;
@@ -46,7 +43,6 @@ export interface Hospital extends LatLng {
   ventilators: Resource;
   erBays: Resource;
   bloodUnits: number;
-  oxygenCylinders?: number;
   facilities: Record<Capability, boolean>;
   doctors: Doctor[];
   rooms: Room[];

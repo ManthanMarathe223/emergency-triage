@@ -7,7 +7,12 @@ import { HospitalLoginPage } from './pages/HospitalLoginPage';
 
 export default function App() {
   return (
-    <div className="flex h-full flex-col bg-app text-primary transition-colors">
+    <div className="flex h-full flex-col">
+      <div className="aurora" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </div>
       <Header />
       <main className="min-h-0 flex-1 overflow-y-auto">
         <Routes>
@@ -17,8 +22,8 @@ export default function App() {
           <Route path="/login" element={<HospitalLoginPage />} />
         </Routes>
       </main>
-      <footer className="border-t border-app bg-surface px-6 py-2.5 text-center text-xs text-secondary">
-        AI-LifeLink Emergency Triage System · Pune & PCMC Clinical Decision Support Platform
+      <footer className="border-t border-white/5 bg-slate-950/40 px-6 py-2.5 text-center text-xs text-slate-400">
+        Emergency Triage & Hospital Telemetry System · Pune & PCMC Metropolitan Healthcare Network · Built for rapid clinical decision support.
       </footer>
     </div>
   );
